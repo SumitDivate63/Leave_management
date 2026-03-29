@@ -12,10 +12,14 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _prnController = TextEditingController(); // Added PRN
+  final TextEditingController _prnController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  
+  // New Controllers for Student Details
+  final TextEditingController _classController = TextEditingController();
+  final TextEditingController _divisionController = TextEditingController();
   
   String _selectedRole = 'Student';
   bool _isLoading = false;
@@ -27,6 +31,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError("Passwords do not match");
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -36,15 +45,23 @@ class _SignupScreenState extends State<SignupScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // Save user details including PRN
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+      // Prepare data
+      Map<String, dynamic> userData = {
         'uid': userCredential.user!.uid,
         'name': _nameController.text.trim(),
-        'prn': _prnController.text.trim(), // Save PRN
+        'prn': _prnController.text.trim(),
         'email': _emailController.text.trim(),
         'role': _selectedRole.toLowerCase(),
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      // Add Class and Division if student
+      if (_selectedRole == 'Student') {
+        userData['class'] = _classController.text.trim().toUpperCase();
+        userData['division'] = _divisionController.text.trim().toUpperCase();
+      }
+
+      await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
 
       if (!mounted) return;
       
@@ -71,7 +88,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF006B91);
+    const primaryColor = Color(0xFF006B91);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -91,7 +108,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: const Icon(Icons.auto_stories, color: Colors.white, size: 40),
                 ),
                 const SizedBox(height: 24),
-                Text('Create Account', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: primaryColor)),
+                const Text('Create Account', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: primaryColor)),
                 const Text('Sign up to continue', style: TextStyle(color: Colors.grey, fontSize: 16)),
                 const SizedBox(height: 32),
                 
@@ -111,9 +128,20 @@ class _SignupScreenState extends State<SignupScreen> {
                 _buildTextField(label: 'Full Name', controller: _nameController, icon: Icons.person_outline, hint: 'e.g. Awantika Patil'),
                 const SizedBox(height: 20),
                 
-                // PRN Field
-                _buildTextField(label: 'PRN / ID', controller: _prnController, icon: Icons.badge_outlined, hint: 'e.g. 2021BCS0123'),
+                _buildTextField(label: _selectedRole == 'Student' ? 'PRN Number' : 'Staff ID', controller: _prnController, icon: Icons.badge_outlined, hint: _selectedRole == 'Student' ? 'e.g. 2303065' : 'e.g. EN1'),
                 const SizedBox(height: 20),
+
+                // Show Class and Division only for Students
+                if (_selectedRole == 'Student') ...[
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField(label: 'Class', controller: _classController, icon: Icons.school_outlined, hint: 'e.g. TY')),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField(label: 'Division', controller: _divisionController, icon: Icons.grid_view, hint: 'e.g. A')),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 _buildTextField(label: 'Email', controller: _emailController, icon: Icons.mail_outline, hint: 'email@example.com', keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 20),
@@ -137,7 +165,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Already have an account? '),
-                    GestureDetector(onTap: () => Navigator.pop(context), child: Text('Login', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold))),
+                    GestureDetector(onTap: () => Navigator.pop(context), child: const Text('Login', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold))),
                   ],
                 ),
               ],
@@ -172,7 +200,7 @@ class _SignupScreenState extends State<SignupScreen> {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          validator: (val) => val!.isEmpty ? 'Field required' : null,
+          validator: (val) => val!.isEmpty ? 'Required' : null,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon),

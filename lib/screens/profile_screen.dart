@@ -15,6 +15,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String email = "";
   String prn = "---";
   String role = "";
+  String studentClass = "N/A";
+  String studentDiv = "N/A";
   bool isLoading = true;
 
   @override
@@ -25,26 +27,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     if (user != null) {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-      
-      if (doc.exists) {
-        setState(() {
-          name = doc.get('name') ?? "";
-          email = doc.get('email') ?? "";
-          prn = doc.get('prn') ?? "---";
-          role = doc.get('role') ?? "";
-          isLoading = false;
-        });
+      try {
+        DocumentSnapshot doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .get();
+        
+        if (doc.exists) {
+          setState(() {
+            name = doc.get('name') ?? "No Name";
+            email = doc.get('email') ?? "";
+            prn = doc.get('prn') ?? "---";
+            role = doc.get('role') ?? "student";
+            
+            // Fetch student-specific fields
+            if (role == 'student') {
+              studentClass = doc.get('class') ?? "N/A";
+              studentDiv = doc.get('division') ?? "N/A";
+            }
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading profile: $e')),
+          );
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF006B91);
+    const primaryColor = Color(0xFF006B91);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -53,46 +69,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.white,
         foregroundColor: primaryColor,
         elevation: 0,
+        centerTitle: true,
       ),
       body: isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(child: CircularProgressIndicator(color: primaryColor))
         : SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
               children: [
-                const SizedBox(height: 20),
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: primaryColor,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : "?",
-                    style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                // Profile Header Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: primaryColor,
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : "?",
+                          style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          role.toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  name,
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                const SizedBox(height: 32),
+
+                // Info Section Label
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Personal Information',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                Text(
-                  role.toUpperCase(),
-                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                ),
-                const SizedBox(height: 40),
-                _buildInfoTile(Icons.badge_outlined, 'PRN / Staff ID', prn),
+                const SizedBox(height: 16),
+
+                // Detail Tiles
+                _buildInfoTile(Icons.badge_outlined, role == 'student' ? 'PRN Number' : 'Staff ID', prn),
                 _buildInfoTile(Icons.email_outlined, 'Email Address', email),
-                _buildInfoTile(Icons.security_outlined, 'Account Status', 'Active'),
+                
+                // Show Class and Division only for Students
+                if (role == 'student') ...[
+                  Row(
+                    children: [
+                      Expanded(child: _buildInfoTile(Icons.school_outlined, 'Class', studentClass)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildInfoTile(Icons.grid_view, 'Division', studentDiv)),
+                    ],
+                  ),
+                ],
+
                 const SizedBox(height: 40),
+
+                // Action Buttons
                 SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () => Navigator.pushNamed(context, '/change_password'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: primaryColor),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: Text('Change Password', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                    child: const Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: TextButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                    child: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -102,24 +182,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoTile(IconData icon, String label, String value) {
+    const primaryColor = Color(0xFF006B91);
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF006B91)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: primaryColor, size: 20),
+          ),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
         ],
       ),

@@ -44,7 +44,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   }
 
   Future<void> _submitRequest() async {
-    if (!_formKey.currentState!.validate() || _selectedLeaveType == null || _fromDate == null || _toDate == null) {
+    if (_selectedLeaveType == null || _fromDate == null || _toDate == null || !_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields')),
       );
@@ -59,19 +59,30 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
       // Fetch user details to include in the request
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      
+      if (!userDoc.exists) {
+        throw Exception("User profile not found");
+      }
+
       String studentName = userDoc.get('name') ?? "Unknown";
       String prn = userDoc.get('prn') ?? "---";
+      
+      // Fetch Class and Division (newly added fields)
+      String studentClass = userDoc.get('class') ?? "N/A";
+      String studentDiv = userDoc.get('division') ?? "N/A";
 
       // Create Leave Entry in Firestore
       await FirebaseFirestore.instance.collection('leaves').add({
         'studentUid': user.uid,
         'studentName': studentName,
         'prn': prn,
+        'studentClass': studentClass,
+        'studentDiv': studentDiv,
         'leaveType': _selectedLeaveType,
         'fromDate': Timestamp.fromDate(_fromDate!),
         'toDate': Timestamp.fromDate(_toDate!),
         'reason': _reasonController.text.trim(),
-        'status': 'pending', // Default status
+        'status': 'pending', 
         'appliedAt': FieldValue.serverTimestamp(),
       });
 
@@ -94,7 +105,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF006B91);
+    const primaryColor = Color(0xFF006B91);
 
     return Scaffold(
       backgroundColor: Colors.white,
