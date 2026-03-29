@@ -1,158 +1,190 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class FacultyDashboard extends StatelessWidget {
+class FacultyDashboard extends StatefulWidget {
   const FacultyDashboard({super.key});
 
   @override
+  State<FacultyDashboard> createState() => _FacultyDashboardState();
+}
+
+class _FacultyDashboardState extends State<FacultyDashboard> {
+  final User? user = FirebaseAuth.instance.currentUser;
+  String userName = "Loading...";
+  String staffID = "---";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    if (user != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+      if (userDoc.exists) {
+        setState(() {
+          userName = userDoc.get('name') ?? "No Name";
+          staffID = userDoc.get('prn') ?? "---";
+        });
+      }
+    }
+  }
+
+  Future<void> _updateLeaveStatus(String docId, String newStatus) async {
+    await FirebaseFirestore.instance.collection('leaves').doc(docId).update({
+      'status': newStatus,
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Leave $newStatus'), backgroundColor: newStatus == 'approved' ? Colors.green : Colors.red),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final primaryColor = const Color(0xFF006B91);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Faculty Dashboard'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        title: const Text('Faculty Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: primaryColor,
+        elevation: 0,
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.pushReplacementNamed(context, '/login');
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (mounted) Navigator.pushReplacementNamed(context, '/login');
             },
             icon: const Icon(Icons.logout),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Faculty Profile Summary
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+            // Profile Card (Matches your screenshot)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 35,
+                    backgroundColor: primaryColor,
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : "?",
+                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Dr. Sarah Jenkins', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text('Senior Professor, Dept. of CSE', style: TextStyle(color: Colors.grey)),
-                          Text('Staff ID: FAC10234', style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 20),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text('Staff ID: $staffID', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
-            // Navigation Options
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: [
-                _buildMenuCard(context, Icons.person, 'My Profile', '/profile'),
-                _buildMenuCard(context, Icons.pending_actions, 'Leave Requests', null),
-                _buildMenuCard(context, Icons.history, 'Leave History', null),
-                _buildMenuCard(context, Icons.lock, 'Change Password', '/change_password'),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'Pending Leave Requests',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-
-            // Sample Leave Requests
-            _buildRequestCard('John Doe', 'Medical Leave', 'Oct 24 - Oct 26', 'High fever and cold.'),
-            _buildRequestCard('Alice Smith', 'Personal Leave', 'Oct 28 - Oct 28', 'Family function.'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuCard(BuildContext context, IconData icon, String title, String? route) {
-    return InkWell(
-      onTap: () {
-        if (route != null) Navigator.pushNamed(context, route);
-      },
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: Colors.blue),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRequestCard(String name, String type, String date, String comment) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(child: Text(name[0])),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(type, style: const TextStyle(color: Colors.blue, fontSize: 12)),
-                  ],
-                ),
-                const Spacer(),
-                const Icon(Icons.attach_file, size: 20, color: Colors.grey),
-              ],
-            ),
-            const Divider(height: 24),
-            Text('Date: $date', style: const TextStyle(fontWeight: FontWeight.w500)),
-            const SizedBox(height: 4),
-            Text(comment, style: const TextStyle(color: Colors.grey)),
+            const Text('Pending Requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                    child: const Text('Approve'),
-                  ),
-                ),
-              ],
+
+            // Live Stream of Pending Leaves
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('leaves')
+                  .where('status', isEqualTo: 'pending')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Text('No pending requests', style: TextStyle(color: Colors.grey)),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var data = snapshot.data!.docs[index];
+                    DateTime from = (data['fromDate'] as Timestamp).toDate();
+                    DateTime to = (data['toDate'] as Timestamp).toDate();
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(child: Text(data['studentName'][0])),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(data['studentName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text('PRN: ${data['prn']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                  ],
+                                ),
+                                const Spacer(),
+                                Chip(label: Text(data['leaveType']), backgroundColor: primaryColor.withOpacity(0.1)),
+                              ],
+                            ),
+                            const Divider(),
+                            Text('Duration: ${DateFormat('MMM dd').format(from)} - ${DateFormat('MMM dd').format(to)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text('Reason: ${data['reason']}', style: const TextStyle(color: Colors.black87)),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => _updateLeaveStatus(data.id, 'rejected'),
+                                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                                    child: const Text('Reject'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () => _updateLeaveStatus(data.id, 'approved'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                    child: const Text('Approve'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),

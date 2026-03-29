@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "243215214664",
+    "project_id": "leave-management-e6eba",
+    "storage_bucket": "leave-management-e6eba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:243215214664:android:56edbe9f1588dc4037107d",
+        "android_client_info": {
+          "package_name": "com.example.untitled"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTk3xfeZwIzTGmbaV3NPpNhYzAWYtkcbQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
