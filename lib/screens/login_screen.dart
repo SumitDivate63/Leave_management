@@ -65,6 +65,41 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFF006B91)),
+            SizedBox(width: 10),
+            Text('Forgot Password', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('To reset your password, please contact the system administrator:'),
+            SizedBox(height: 16),
+            Text(
+              'Awantika Patil (Awadi)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF006B91)),
+            ),
+            Text('Administrator', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -74,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = const Color(0xFF006B91);
-// test change
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -138,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: _showForgotPasswordDialog,
                   child: Text('Forgot Password?', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
                 ),
               ),

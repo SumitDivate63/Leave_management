@@ -94,7 +94,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF006B91);
+    const primaryColor = Color(0xFF006B91);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -187,25 +187,38 @@ class _StudentDashboardState extends State<StudentDashboard> {
               stream: FirebaseFirestore.instance
                   .collection('leaves')
                   .where('studentUid', isEqualTo: user?.uid)
-                  .orderBy('appliedAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                }
+
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('No recent leave requests found.', style: TextStyle(color: Colors.grey))));
                 }
+
+                // Manually sort the docs since orderBy might be causing index issues
+                var docs = snapshot.data!.docs.toList();
+                docs.sort((a, b) {
+                  Timestamp t1 = a.get('appliedAt') ?? a.get('fromDate');
+                  Timestamp t2 = b.get('appliedAt') ?? b.get('fromDate');
+                  return t2.compareTo(t1);
+                });
+
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    var data = snapshot.data!.docs[index];
-                    String status = data['status'];
+                    var data = docs[index].data() as Map<String, dynamic>;
+                    String status = data['status'] ?? 'pending';
                     DateTime fromDate = (data['fromDate'] as Timestamp).toDate();
                     DateTime toDate = (data['toDate'] as Timestamp).toDate();
                     String dateRange = "${DateFormat('MMM dd').format(fromDate)} - ${DateFormat('MMM dd').format(toDate)}";
                     return LeaveHistoryTile(
-                      leaveType: data['leaveType'],
+                      leaveType: data['leaveType'] ?? 'Leave',
                       date: dateRange,
                       status: status.toUpperCase(),
                       statusColor: _getStatusColor(status),
