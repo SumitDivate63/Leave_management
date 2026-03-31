@@ -58,9 +58,12 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Faculty Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: Colors.white24, width: 1),
+        ),
         actions: [
           IconButton(
             onPressed: () async {

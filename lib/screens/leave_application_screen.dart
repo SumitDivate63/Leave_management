@@ -111,9 +111,12 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Apply for Leave', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: Colors.white24, width: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
