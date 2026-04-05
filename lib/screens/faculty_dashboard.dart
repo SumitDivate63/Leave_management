@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'leave_details_screen.dart';
 
 class FacultyDashboard extends StatefulWidget {
   const FacultyDashboard({super.key});
@@ -207,88 +208,121 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               elevation: 2,
+              clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey[200]!)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: primaryColor.withOpacity(0.1),
-                          child: Text(data['studentName']?[0] ?? "S", style: const TextStyle(color: primaryColor)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(data['studentName'] ?? "Student", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text('PRN: ${data['prn']} | $studentClass ($studentDiv)', 
-                                   style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                          child: Text(data['leaveType'] ?? "General", style: const TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LeaveDetailsScreen(leaveData: data, docId: docId),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12.0),
-                      child: Divider(height: 1),
-                    ),
-                    Text('Duration: ${DateFormat('MMM dd').format(from)} - ${DateFormat('MMM dd').format(to)}', 
-                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text('Reason: ${data['reason']}', style: const TextStyle(color: Colors.black87)),
-                    
-                    if (status == 'pending') ...[
-                      const SizedBox(height: 16),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => _updateLeaveStatus(docId, 'rejected'),
-                              style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
-                              child: const Text('Reject'),
-                            ),
+                          CircleAvatar(
+                            backgroundColor: primaryColor.withOpacity(0.1),
+                            child: Text(data['studentName']?[0] ?? "S", style: const TextStyle(color: primaryColor)),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => _updateLeaveStatus(docId, 'approved'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, elevation: 0),
-                              child: const Text('Approve'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(data['studentName'] ?? "Student", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text('PRN: ${data['prn']} | $studentClass ($studentDiv)', 
+                                     style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                              ],
                             ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Text(data['leaveType'] ?? "General", style: const TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
-                    ] else ...[
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: Divider(height: 1),
+                      ),
+                      Text('Duration: ${DateFormat('MMM dd').format(from)} - ${DateFormat('MMM dd').format(to)}', 
+                           style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text('Reason: ${data['reason']}', 
+                           maxLines: 2,
+                           overflow: TextOverflow.ellipsis,
+                           style: const TextStyle(color: Colors.black87)),
+                      
+                      if (data['fileUrl'] != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: status == 'approved' ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            status.toUpperCase(),
-                            style: TextStyle(
-                              color: status == 'approved' ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.attach_file, size: 14, color: Colors.blue),
+                              SizedBox(width: 4),
+                              Text('Attachment available', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
+                      if (status == 'pending') ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _updateLeaveStatus(docId, 'rejected'),
+                                style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                                child: const Text('Reject'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => _updateLeaveStatus(docId, 'approved'),
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, elevation: 0),
+                                child: const Text('Approve'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: status == 'approved' ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: status == 'approved' ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             );

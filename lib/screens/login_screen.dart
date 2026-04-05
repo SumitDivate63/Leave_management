@@ -54,12 +54,22 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/student_dashboard');
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Error: ${e.message}';
-      if (e.code == 'user-not-found') message = 'No user found for that email.';
-      else if (e.code == 'wrong-password') message = 'Wrong password provided.';
+      debugPrint('Firebase Auth Error Code: ${e.code}');
+      String message = 'An error occurred. Please try again.';
+      
+      if (e.code == 'network-request-failed') {
+        message = 'Network error: Please check your internet connection or emulator DNS settings.';
+      } else if (e.code == 'user-not-found') {
+        message = 'No user found for that email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Wrong password provided.';
+      } else if (e.message != null) {
+        message = e.message!;
+      }
       _showError(message);
     } catch (e) {
-      _showError(e.toString());
+      debugPrint('General Login Error: $e');
+      _showError('Connection failed: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
