@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import '../services/google_drive_service.dart';
 
 class LeaveApplicationScreen extends StatefulWidget {
   const LeaveApplicationScreen({super.key});
@@ -15,13 +18,93 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   final TextEditingController _reasonController = TextEditingController();
   final TextEditingController _fromDateController = TextEditingController();
   final TextEditingController _toDateController = TextEditingController();
+  final GoogleDriveService _driveService = GoogleDriveService();
   
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedLeaveType;
   bool _isLoading = false;
+  File? _selectedFile;
+  String? _fileName;
 
   final List<String> _leaveTypes = ['Medical', 'Personal', 'Academic', 'Event', 'Sports'];
+
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedFile = File(result.files.single.path!);
+        _fileName = result.files.single.name;
+      });
+    }
+  }
+
+  Future<void> _submitRequest() async {
+    if (_selectedLeaveType == null || _fromDate == null || _toDate == null || !_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not authenticated");
+
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) throw Exception("User profile not found");
+
+      String? fileUrl;
+      String? fileType;
+
+      if (_selectedFile != null) {
+        // UPLOAD TO GOOGLE DRIVE
+        fileUrl = await _driveService.uploadFile(_selectedFile!);
+        if (fileUrl == null) {
+          throw Exception("Google Drive upload failed. Please check folder permissions.");
+        }
+        
+        String ext = _fileName!.toLowerCase();
+        fileType = ext.endsWith('.pdf') ? 'pdf' : 'image';
+      }
+
+      await FirebaseFirestore.instance.collection('leaves').add({
+        'studentUid': user.uid,
+        'studentName': userDoc.get('name') ?? "Unknown",
+        'prn': userDoc.get('prn') ?? "---",
+        'studentClass': userDoc.get('class') ?? "N/A",
+        'studentDiv': userDoc.get('division') ?? "N/A",
+        'leaveType': _selectedLeaveType,
+        'fromDate': Timestamp.fromDate(_fromDate!),
+        'toDate': Timestamp.fromDate(_toDate!),
+        'reason': _reasonController.text.trim(),
+        'fileUrl': fileUrl,
+        'fileType': fileType,
+        'status': 'pending',
+        'appliedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Application Submitted Successfully!'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+
+    } catch (e) {
+      debugPrint('SUBMIT ERROR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _selectDate(BuildContext context, bool isFromDate) async {
     final DateTime? picked = await showDatePicker(
@@ -43,78 +126,12 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     }
   }
 
-  Future<void> _submitRequest() async {
-    if (_selectedLeaveType == null || _fromDate == null || _toDate == null || !_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      // Fetch user details to include in the request
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      
-      if (!userDoc.exists) {
-        throw Exception("User profile not found");
-      }
-
-      String studentName = userDoc.get('name') ?? "Unknown";
-      String prn = userDoc.get('prn') ?? "---";
-      
-      // Fetch Class and Division (newly added fields)
-      String studentClass = userDoc.get('class') ?? "N/A";
-      String studentDiv = userDoc.get('division') ?? "N/A";
-
-      // Create Leave Entry in Firestore
-      await FirebaseFirestore.instance.collection('leaves').add({
-        'studentUid': user.uid,
-        'studentName': studentName,
-        'prn': prn,
-        'studentClass': studentClass,
-        'studentDiv': studentDiv,
-        'leaveType': _selectedLeaveType,
-        'fromDate': Timestamp.fromDate(_fromDate!),
-        'toDate': Timestamp.fromDate(_toDate!),
-        'reason': _reasonController.text.trim(),
-        'status': 'pending', 
-        'appliedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Leave request submitted successfully!'), backgroundColor: Colors.green),
-      );
-      
-      Navigator.pop(context);
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF006B91);
-
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Apply for Leave', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Apply for Leave'), foregroundColor: primaryColor, backgroundColor: Colors.white, elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -123,64 +140,55 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Leave Portal', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Fill out the form below to submit your absence request.', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
-              
               const Text('Leave Type', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  filled: true, fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                hint: const Text('Select category'),
+                decoration: InputDecoration(filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                 value: _selectedLeaveType,
                 items: _leaveTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (val) => setState(() => _selectedLeaveType = val),
               ),
               const SizedBox(height: 20),
-
               Row(
                 children: [
-                  Expanded(
-                    child: _buildDateField('From Date', _fromDateController, () => _selectDate(context, true)),
-                  ),
+                  Expanded(child: _buildDateField('From Date', _fromDateController, () => _selectDate(context, true))),
                   const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildDateField('To Date', _toDateController, () => _selectDate(context, false)),
-                  ),
+                  Expanded(child: _buildDateField('To Date', _toDateController, () => _selectDate(context, false))),
                 ],
               ),
               const SizedBox(height: 20),
-
-              const Text('Reason / Description', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Attach Proof (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              InkWell(
+                onTap: _pickFile,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.grey[50], border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_file, color: primaryColor),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_fileName ?? 'Upload PDF or Image', overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Reason', style: TextStyle(fontWeight: FontWeight.bold)),
               TextFormField(
                 controller: _reasonController,
                 maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Provide details about your leave request...',
-                  filled: true, fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                decoration: InputDecoration(filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                 validator: (val) => val!.isEmpty ? 'Reason required' : null,
               ),
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submitRequest,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Submit Request', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Submit Request'),
                 ),
               ),
             ],
@@ -191,32 +199,10 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   }
 
   Widget _buildDateField(String label, TextEditingController controller, VoidCallback onTap) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          readOnly: true,
-          onTap: onTap,
-          decoration: InputDecoration(
-            hintText: 'mm/dd/yyyy',
-            suffixIcon: const Icon(Icons.calendar_today, size: 20),
-            filled: true, fillColor: Colors.grey[50],
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          validator: (val) => val!.isEmpty ? 'Select date' : null,
-        ),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    _reasonController.dispose();
-    _fromDateController.dispose();
-    _toDateController.dispose();
-    super.dispose();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      TextFormField(controller: controller, readOnly: true, onTap: onTap, decoration: InputDecoration(hintText: 'mm/dd/yyyy', suffixIcon: const Icon(Icons.calendar_today), filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+    ]);
   }
 }

@@ -67,7 +67,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF006B91);
+    const primaryColor = Color(0xFF006B91);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -76,6 +76,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor: Colors.white,
         foregroundColor: primaryColor,
         elevation: 0,
+        shape: Border(
+          bottom: BorderSide(color: primaryColor.withOpacity(0.1), width: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
