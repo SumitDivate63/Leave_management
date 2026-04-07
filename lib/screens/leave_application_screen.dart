@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../services/google_drive_service.dart';
+import '../services/leave_service.dart';
 
 class LeaveApplicationScreen extends StatefulWidget {
   const LeaveApplicationScreen({super.key});
@@ -49,6 +50,11 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       return;
     }
 
+    if (_toDate!.isBefore(_fromDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('To Date cannot be before From Date'), backgroundColor: Colors.red));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -57,6 +63,9 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (!userDoc.exists) throw Exception("User profile not found");
+
+      // Feature 2: Find Approver
+      String? approverId = await LeaveService.findApproverId(_selectedLeaveType!);
 
       String? fileUrl;
       String? fileType;
@@ -72,7 +81,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         fileType = ext.endsWith('.pdf') ? 'pdf' : 'image';
       }
 
-      await FirebaseFirestore.instance.collection('leaves').add({
+      await FirebaseFirestore.instance.collection(LeaveService.collectionName).add({
         'studentUid': user.uid,
         'studentName': userDoc.get('name') ?? "Unknown",
         'prn': userDoc.get('prn') ?? "---",
@@ -85,6 +94,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         'fileUrl': fileUrl,
         'fileType': fileType,
         'status': 'pending',
+        'approverId': approverId, // Assigned approver
         'appliedAt': FieldValue.serverTimestamp(),
       });
 
@@ -107,17 +117,28 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   }
 
   Future<void> _selectDate(BuildContext context, bool isFromDate) async {
+    final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: isFromDate 
+          ? (_fromDate ?? now) 
+          : (_toDate ?? (_fromDate ?? now)),
+      // Allow any date for From Date (past or future)
+      firstDate: isFromDate ? DateTime(2000) : (_fromDate ?? now),
       lastDate: DateTime(2101),
     );
+
     if (picked != null) {
       setState(() {
         if (isFromDate) {
           _fromDate = picked;
           _fromDateController.text = DateFormat('MM/dd/yyyy').format(picked);
+          
+          // If toDate is now before the new fromDate, reset it
+          if (_toDate != null && _toDate!.isBefore(_fromDate!)) {
+            _toDate = _fromDate;
+            _toDateController.text = DateFormat('MM/dd/yyyy').format(_toDate!);
+          }
         } else {
           _toDate = picked;
           _toDateController.text = DateFormat('MM/dd/yyyy').format(picked);

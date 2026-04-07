@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/leave_service.dart';
 
 class LeaveDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> leaveData;
@@ -19,7 +20,7 @@ class _LeaveDetailsScreenState extends State<LeaveDetailsScreen> {
   Future<void> _updateStatus(String status) async {
     setState(() => _isProcessing = true);
     try {
-      await FirebaseFirestore.instance.collection('leaves').doc(widget.docId).update({
+      await FirebaseFirestore.instance.collection(LeaveService.collectionName).doc(widget.docId).update({
         'status': status,
         'processedAt': FieldValue.serverTimestamp(),
       });

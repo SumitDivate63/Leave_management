@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import '../services/leave_service.dart';
 
 class FacultyLeaveScreen extends StatelessWidget {
   const FacultyLeaveScreen({super.key});
@@ -20,7 +21,7 @@ class FacultyLeaveScreen extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('leaves')
+            .collection(LeaveService.collectionName)
             .orderBy('appliedAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -161,7 +162,7 @@ class FacultyLeaveScreen extends StatelessWidget {
   }
 
   Future<void> _updateStatus(String docId, String status) async {
-    await FirebaseFirestore.instance.collection('leaves').doc(docId).update({'status': status});
+    await FirebaseFirestore.instance.collection(LeaveService.collectionName).doc(docId).update({'status': status});
   }
 
   Future<void> _viewFile(BuildContext context, String url, String? type) async {

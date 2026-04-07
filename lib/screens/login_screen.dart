@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'pending_approval_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -28,6 +30,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
+    // Hardcoded Admin Login check
+    if (email == 'admin@college.com' && password == 'Admin@123') {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/admin_dashboard');
+        return;
+      }
+    }
+
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -44,8 +54,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       String role = userDoc.get('role');
+      bool isApproved = userDoc.data().toString().contains('isApproved') ? userDoc.get('isApproved') : true;
 
       if (!mounted) return;
+      
+      if (!isApproved) {
+        await _auth.signOut();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PendingApprovalScreen()),
+        );
+        return;
+      }
+
       if (role == 'faculty') {
         Navigator.pushReplacementNamed(context, '/faculty_dashboard');
       } else if (role == 'admin') {
@@ -94,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text('To reset your password, please contact the system administrator:'),
             SizedBox(height: 16),
             Text(
-              'Awantika Patil (Awadi)',
+              'Awantika Patil ',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF006B91)),
             ),
             Text('Administrator', style: TextStyle(color: Colors.grey)),

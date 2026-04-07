@@ -11,6 +11,7 @@ import 'screens/leave_application_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/change_password_screen.dart';
 import 'screens/faculty_leave_screen.dart';
+import 'screens/pending_approval_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class LeaveManagementApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
         '/faculty_leave_requests': (context) => const FacultyLeaveScreen(),
+        '/pending_approval': (context) => const PendingApprovalScreen(),
       },
     );
   }

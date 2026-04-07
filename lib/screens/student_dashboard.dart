@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/leave_status_card.dart';
 import '../widgets/leave_history_tile.dart';
+import '../services/leave_service.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -60,7 +61,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             width: double.maxFinite,
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('leaves')
+                  .collection(LeaveService.collectionName)
                   .where('studentUid', isEqualTo: user?.uid)
                   .where('status', isEqualTo: statusFilter)
                   .snapshots(),
@@ -160,7 +161,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('leaves')
+                  .collection(LeaveService.collectionName)
                   .where('studentUid', isEqualTo: user?.uid)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -188,7 +189,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const SizedBox(height: 12),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('leaves')
+                  .collection(LeaveService.collectionName)
                   .where('studentUid', isEqualTo: user?.uid)
                   .snapshots(),
               builder: (context, snapshot) {

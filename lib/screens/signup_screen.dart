@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'pending_approval_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -22,7 +23,15 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _divisionController = TextEditingController();
   
   String _selectedRole = 'Student';
+  String _selectedFacultyType = 'Class Teacher';
   bool _isLoading = false;
+
+  final List<String> _facultyTypes = [
+    'Sports Faculty',
+    'Event Faculty',
+    'Academic Faculty',
+    'Class Teacher'
+  ];
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -52,6 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
         'prn': _prnController.text.trim(),
         'email': _emailController.text.trim(),
         'role': _selectedRole.toLowerCase(),
+        'isApproved': _selectedRole == 'Student' ? true : false, // Faculty needs approval
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -59,17 +69,23 @@ class _SignupScreenState extends State<SignupScreen> {
       if (_selectedRole == 'Student') {
         userData['class'] = _classController.text.trim().toUpperCase();
         userData['division'] = _divisionController.text.trim().toUpperCase();
+      } else if (_selectedRole == 'Faculty') {
+        userData['facultyType'] = _selectedFacultyType.toLowerCase().replaceAll(' ', '_');
       }
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
 
       if (!mounted) return;
       
-      Navigator.pushNamedAndRemoveUntil(
-        context, 
-        _selectedRole == 'Faculty' ? '/faculty_dashboard' : '/student_dashboard', 
-        (route) => false
-      );
+      if (_selectedRole == 'Faculty') {
+        _showSuccessDialog();
+      } else {
+        Navigator.pushNamedAndRemoveUntil(
+          context, 
+          '/student_dashboard', 
+          (route) => false
+        );
+      }
 
     } on FirebaseAuthException catch (e) {
       _showError(e.message ?? 'An error occurred.');
@@ -83,6 +99,42 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 60),
+            SizedBox(height: 16),
+            Text('Success!', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Your faculty registration request has been submitted successfully. Please wait for the admin to approve your account.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF006B91),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Go to Login', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -139,6 +191,23 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(width: 16),
                       Expanded(child: _buildTextField(label: 'Division', controller: _divisionController, icon: Icons.grid_view, hint: 'e.g. A')),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                if (_selectedRole == 'Faculty') ...[
+                  const Text('Faculty Type', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      prefixIcon: const Icon(Icons.assignment_ind_outlined),
+                    ),
+                    value: _selectedFacultyType,
+                    items: _facultyTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (val) => setState(() => _selectedFacultyType = val!),
                   ),
                   const SizedBox(height: 20),
                 ],

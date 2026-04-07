@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'leave_details_screen.dart';
+import '../services/leave_service.dart';
 
 class FacultyDashboard extends StatefulWidget {
   const FacultyDashboard({super.key});
@@ -36,7 +37,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
   }
 
   Future<void> _updateLeaveStatus(String docId, String newStatus) async {
-    await FirebaseFirestore.instance.collection('leaves').doc(docId).update({
+    await FirebaseFirestore.instance.collection(LeaveService.collectionName).doc(docId).update({
       'status': newStatus,
       'processedAt': FieldValue.serverTimestamp(),
       'processedBy': staffID,
@@ -167,8 +168,9 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('leaves')
+          .collection(LeaveService.collectionName)
           .where('status', isEqualTo: status)
+          .where('approverId', isEqualTo: user?.uid) // Filter by approverId
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
